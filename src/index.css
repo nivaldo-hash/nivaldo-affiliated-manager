@@ -1,0 +1,442 @@
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap");
+
+@import "tailwindcss";
+
+/* Enable dark mode via .dark class on any ancestor */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ─────────────────────────────────────────────────────────────────
+   Design tokens (v4 replaces tailwind.config.js with @theme in CSS)
+   ───────────────────────────────────────────────────────────────── */
+@theme {
+    /* Surfaces */
+    --color-background-deep: #0d0f1c;
+    --color-background: #0e1225;
+    --color-surface: #0e1225;
+    --color-surface-card: #1e2235;
+    --color-surface-container: #1b1f31;
+    --color-surface-container-low: #161b2d;
+    --color-surface-container-high: #25293c;
+    --color-surface-container-highest: #303448;
+    --color-surface-variant: #303448;
+    --color-surface-bright: #34384c;
+    --color-surface-dim: #0e1225;
+
+    /* Text */
+    --color-text-primary: #f9fafb;
+    --color-text-secondary: #d4d4d8;
+    --color-on-surface: #dee1fb;
+    --color-on-surface-variant: #c7c4d8;
+
+    /* Accents */
+    --color-primary: #c3c0ff;
+    --color-primary-container: #3b2fcf;
+    --color-secondary: #43dff5;
+    --color-secondary-container: #00c2d8;
+    --color-tertiary: #ffade3;
+
+    /* States */
+    --color-error: #ffb4ab;
+    --color-status-assigned: #3b2fcf;
+    --color-status-in-progress: #1ecbe1;
+    --color-status-completed: #10b981;
+    --color-status-on-hold: #a1a1aa;
+    --color-status-acknowledged: #f59e0b;
+    --color-status-stuck: #ef4444;
+
+    /* Glows (passed to box-shadow inline) */
+    --color-glow-purple: rgba(59, 47, 207, 0.4);
+    --color-glow-teal: rgba(30, 203, 225, 0.4);
+
+    /* Outlines */
+    --color-outline: #918fa1;
+    --color-outline-variant: #464555;
+
+    /* Fonts */
+    --font-sans: "Geist", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", monospace;
+
+    /* Typography scale */
+    --text-headline-xl: 48px;
+    --text-headline-xl--line-height: 56px;
+    --text-headline-xl--letter-spacing: -0.02em;
+    --text-headline-xl--font-weight: 500;
+
+    --text-headline-lg: 32px;
+    --text-headline-lg--line-height: 40px;
+    --text-headline-lg--letter-spacing: -0.01em;
+    --text-headline-lg--font-weight: 500;
+
+    --text-headline-md: 24px;
+    --text-headline-md--line-height: 32px;
+    --text-headline-md--font-weight: 500;
+
+    --text-body-lg: 18px;
+    --text-body-lg--line-height: 28px;
+
+    --text-body-md: 16px;
+    --text-body-md--line-height: 24px;
+
+    --text-label-mono: 12px;
+    --text-label-mono--line-height: 16px;
+    --text-label-mono--letter-spacing: 0.05em;
+    --text-label-mono--font-weight: 500;
+
+    --text-kpi-display: 40px;
+    --text-kpi-display--line-height: 48px;
+    --text-kpi-display--letter-spacing: 0.02em;
+    --text-kpi-display--font-weight: 700;
+
+    /* Spacing */
+    --spacing-gutter: 24px;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Base styles
+   ───────────────────────────────────────────────────────────────── */
+@layer base {
+    body {
+        background-color: var(--color-background-deep);
+        color: var(--color-text-primary);
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Component classes
+   ───────────────────────────────────────────────────────────────── */
+@layer components {
+    /* Ambient orbs */
+    .ambient-orb {
+        position: fixed;
+        border-radius: 9999px;
+        pointer-events: none;
+        filter: blur(100px);
+        opacity: 0.08;
+        z-index: 0;
+        animation: float 20s infinite ease-in-out alternate;
+    }
+    .orb-purple {
+        background-color: var(--color-primary-container);
+        width: 600px;
+        height: 600px;
+        top: -100px;
+        left: -100px;
+    }
+    .orb-teal {
+        background-color: var(--color-secondary-container);
+        width: 500px;
+        height: 500px;
+        bottom: -50px;
+        right: -100px;
+        animation-delay: -10s;
+    }
+
+    /* Gradient-bordered glass card */
+    .glass-card {
+        background: rgba(30, 34, 53, 0.6);
+        backdrop-filter: blur(12px);
+        border: 1px solid transparent;
+        background-clip: padding-box;
+        position: relative;
+        transition: all 0.3s ease;
+    }
+    .glass-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        margin: -1px;
+        border-radius: inherit;
+        background: linear-gradient(135deg, #3b2fcf, #00c2d8);
+        opacity: 0.3;
+        transition: opacity 0.3s ease;
+    }
+    .glass-card:hover {
+        transform: translateY(-2px);
+        box-shadow:
+            0 10px 30px rgba(0, 0, 0, 0.5),
+            0 0 20px rgba(59, 47, 207, 0.4);
+    }
+    .glass-card:hover::before {
+        opacity: 1;
+    }
+
+    /* Shimmer summary button */
+    .btn-shimmer {
+        position: relative;
+        overflow: hidden;
+        background: rgba(59, 47, 207, 0.2);
+        border: 1px solid #3b2fcf;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .btn-shimmer::after {
+        content: "";
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(
+            to right,
+            transparent,
+            rgba(255, 255, 255, 0.2),
+            transparent
+        );
+        transform: rotate(45deg) translateY(-100%);
+        animation: shimmer 5s infinite;
+    }
+    .btn-shimmer:hover {
+        background: rgba(59, 47, 207, 0.5);
+        transform: translateY(-2px);
+        box-shadow:
+            0 4px 20px rgba(59, 47, 207, 0.4),
+            inset 0 0 10px rgba(195, 192, 255, 0.2);
+        border-color: #c3c0ff;
+    }
+    .btn-shimmer:active {
+        transform: translateY(1px) scale(0.98);
+    }
+
+    /* Donut chart pulse */
+    .donut-container svg {
+        animation: pulseGlow 4s infinite ease-in-out alternate;
+    }
+
+    /* Interactive project row */
+    .project-row {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .project-row:hover {
+        background: rgba(48, 52, 72, 0.7);
+        border-color: rgba(195, 192, 255, 0.2);
+        box-shadow:
+            0 4px 20px rgba(0, 0, 0, 0.3),
+            inset 0 0 0 1px rgba(195, 192, 255, 0.1);
+    }
+
+    /* Welcome banner — slides in from left, no card chrome */
+    .welcome-banner {
+        animation: welcomeSlide 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .welcome-banner-skeleton {
+        animation: welcomeSlide 0.4s ease-out forwards;
+    }
+    .welcome-avatar {
+        animation: avatarPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+    /* Soft pulsing glow ring behind the avatar */
+    .welcome-avatar-ring {
+        position: absolute;
+        inset: -4px;
+        border-radius: 9999px;
+        background: conic-gradient(from 0deg, #3b2fcf, #00c2d8, #3b2fcf);
+        opacity: 0.6;
+        filter: blur(6px);
+        z-index: 0;
+        animation:
+            ringSpin 8s linear infinite,
+            ringPulse 3s ease-in-out infinite alternate;
+    }
+    .welcome-greeting {
+        display: inline-block;
+    }
+    /* Blinking cursor while text is being typed out */
+    .welcome-cursor {
+        display: inline-block;
+        margin-left: 2px;
+        color: var(--color-secondary);
+        animation: cursorBlink 0.8s steps(2) infinite;
+    }
+    /* Waving hand after typing completes */
+    .welcome-wave {
+        display: inline-block;
+        animation: waveHand 1.5s ease-in-out;
+        transform-origin: 70% 70%;
+    }
+
+    /* Drill-down panel — uses grid-template-rows trick for smooth auto-height
+     transition. Going from 0fr to 1fr animates the inner content's natural
+     height, which fixed-pixel max-height can't match. */
+    .drill-panel {
+        display: grid;
+        grid-template-rows: 0fr;
+        transition: grid-template-rows 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .drill-panel-open {
+        grid-template-rows: 1fr;
+    }
+    /* Each subitem row fades up with a tiny stagger via animation-delay
+     set inline on each <li>. */
+    .drill-subitem {
+        opacity: 0;
+        transform: translateY(-4px);
+        animation: subitemFade 0.4s ease-out forwards;
+    }
+    /* Pulse the chevron-toggle pill briefly when it gets clicked open */
+    .drill-toggle:focus-visible {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 2px;
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Keyframes
+   ───────────────────────────────────────────────────────────────── */
+@keyframes float {
+    0% {
+        transform: translate(0, 0) scale(1);
+    }
+    100% {
+        transform: translate(100px, 50px) scale(1.1);
+    }
+}
+@keyframes shimmer {
+    0%,
+    100% {
+        transform: rotate(45deg) translateY(-100%);
+    }
+    20% {
+        transform: rotate(45deg) translateY(100%);
+    }
+}
+@keyframes pulseGlow {
+    0% {
+        filter: drop-shadow(0 0 10px rgba(59, 47, 207, 0.3));
+        transform: rotate(-90deg) scale(1);
+    }
+    100% {
+        filter: drop-shadow(0 0 25px rgba(59, 47, 207, 0.6));
+        transform: rotate(-90deg) scale(1.02);
+    }
+}
+@keyframes drawStroke {
+    from {
+        stroke-dasharray: 0 100;
+    }
+}
+@keyframes welcomeSlide {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+@keyframes avatarPop {
+    0% {
+        opacity: 0;
+        transform: scale(0.6);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+@keyframes ringSpin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+@keyframes ringPulse {
+    0% {
+        opacity: 0.4;
+        filter: blur(6px);
+    }
+    100% {
+        opacity: 0.7;
+        filter: blur(10px);
+    }
+}
+@keyframes cursorBlink {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0;
+    }
+}
+@keyframes subitemFade {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+@keyframes waveHand {
+    0%,
+    100% {
+        transform: rotate(0deg);
+    }
+    15%,
+    45%,
+    75% {
+        transform: rotate(14deg);
+    }
+    30%,
+    60% {
+        transform: rotate(-8deg);
+    }
+}
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.donut-segment {
+    stroke-dasharray: 100 100;
+    animation: drawStroke 1.5s ease-out forwards;
+}
+.stagger-item {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.stagger-1 {
+    animation-delay: 0.1s;
+}
+.stagger-2 {
+    animation-delay: 0.2s;
+}
+.stagger-3 {
+    animation-delay: 0.3s;
+}
+.stagger-4 {
+    animation-delay: 0.4s;
+}
+.stagger-5 {
+    animation-delay: 0.5s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ambient-orb,
+    .donut-segment,
+    .btn-shimmer::after,
+    .donut-container svg,
+    .stagger-item,
+    .project-row,
+    select,
+    .page-btn {
+        animation: none !important;
+        transition: none !important;
+        transform: none !important;
+        opacity: 1 !important;
+    }
+}
