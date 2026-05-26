@@ -1,15 +1,12 @@
 import { useState } from "react";
-import { SeamlessApiClient } from "@mondaydotcomorg/api";
 import type { ProjectItem, SubItem } from "../api/monday";
+import { updateItemStatus } from "../api/monday";
 import {
     STATUS_COLORS,
     STATUS_LABELS,
     DEFAULT_STATUS_COLOR,
-    COLUMN_IDS,
 } from "../config/columns";
 import { useMondayUserById } from "../hooks/useMondayUserById";
-
-const client = new SeamlessApiClient();
 
 type Props = {
     item: ProjectItem;
@@ -21,9 +18,13 @@ type Props = {
 const STATUS_OPTIONS = Object.values(STATUS_LABELS);
 
 const fmtDate = (iso: string | null) => {
-    if (!iso) return "--";
+    if (!iso) return "—";
     const d = new Date(iso);
-    return d.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
+    return d.toLocaleDateString("en-US", {
+        month: "short",
+        day: "2-digit",
+        year: "numeric",
+    });
 };
 
 const isOverdue = (iso: string | null, completed: boolean) => {
@@ -41,30 +42,14 @@ export function ProjectRow({ item, boardId, staggerIndex, onSummary }: Props) {
     const [expanded, setExpanded] = useState(false);
 
     const color = STATUS_COLORS[statusLabel] ?? DEFAULT_STATUS_COLOR;
-    const isCompleted = statusLabel === STATUS_LABELS.COMPLETED;
-    const overdue = isOverdue(item.completionDate, isCompleted);
+    const hasSubitems = item.subitems.length > 0;
 
     const handleStatusChange = async (next: string) => {
         const previous = statusLabel;
         setStatusLabel(next);
         setUpdating(true);
         try {
-            await client.request(
-                `mutation ($boardId: ID!, $itemId: ID!, $columnId: String!, $value: String!) {
-          change_simple_column_value(
-            board_id: $boardId,
-            item_id: $itemId,
-            column_id: $columnId,
-            value: $value
-          ) { id }
-        }`,
-                {
-                    boardId,
-                    itemId: item.id,
-                    columnId: COLUMN_IDS.status,
-                    value: next,
-                },
-            );
+            await updateItemStatus(boardId, item.id, next);
         } catch (err) {
             console.error("Failed to update status:", err);
             setStatusLabel(previous);
@@ -72,19 +57,6 @@ export function ProjectRow({ item, boardId, staggerIndex, onSummary }: Props) {
             setUpdating(false);
         }
     };
-
-    const leadState = useMondayUserById(item.lead?.id ?? null);
-    const leadUser = leadState.status === "ready" ? leadState.user : null;
-    const leadInitials = leadUser
-        ? leadUser.name
-              .split(" ")
-              .map((w) => w[0])
-              .slice(0, 2)
-              .join("")
-              .toUpperCase()
-        : "--";
-
-    const hasSubitems = item.subitems.length > 0;
 
     const toggleExpand = () => {
         if (hasSubitems) setExpanded((v) => !v);
@@ -101,19 +73,21 @@ export function ProjectRow({ item, boardId, staggerIndex, onSummary }: Props) {
     return (
         <div
             className={`glass-card rounded-xl stagger-item stagger-${Math.min(staggerIndex + 1, 5)}
-            `}
+            }`}
         >
+            {/* Main clickable row */}
             <div
                 onClick={toggleExpand}
                 onKeyDown={onKeyDown}
                 role={hasSubitems ? "button" : undefined}
                 tabIndex={hasSubitems ? 0 : undefined}
                 aria-expanded={hasSubitems ? expanded : undefined}
-                className={`project-row p-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 rounded-xl ${
+                className={`project-row p-4 flex flex-col lg:flex-row lg:items-center gap-4 rounded-xl ${
                     hasSubitems ? "cursor-pointer" : ""
                 }`}
             >
-                <div className="flex items-start gap-3 w-full lg:w-[22%] min-w-0">
+                {/* Project name with chevron + subitem count */}
+                <div className="flex items-start gap-3 lg:w-[30%] min-w-0">
                     {hasSubitems ? (
                         <span
                             className={`material-symbols-outlined text-[20px] mt-0.5 text-primary transition-transform duration-300 shrink-0 ${
@@ -126,119 +100,32 @@ export function ProjectRow({ item, boardId, staggerIndex, onSummary }: Props) {
                     ) : (
                         <span className="w-5 shrink-0" aria-hidden="true" />
                     )}
-
-                    <div className="flex flex-col gap-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                            <h3 className="text-headline-md text-lg text-text-primary font-bold truncate">
-                                {item.name}
-                            </h3>
-                            {hasSubitems && (
-                                <span className="text-[10px] font-mono text-primary bg-primary-container/20 border border-primary-container/40 px-1.5 py-0.5 rounded-full whitespace-nowrap">
-                                    {item.subitems.length}
-                                </span>
-                            )}
-                        </div>
-                        {item.type && (
-                            <span className="inline-block px-2 py-0.5 border border-outline-variant rounded text-text-secondary text-[10px] font-mono w-max">
-                                {item.type}
+                    <div className="flex items-center gap-2 min-w-0">
+                        <h3 className="text-headline-md text-lg text-text-primary font-bold truncate">
+                            {item.name}
+                        </h3>
+                        {hasSubitems && (
+                            <span className="text-[10px] font-mono text-primary bg-primary-container/20 border border-primary-container/40 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                                {item.subitems.length}
                             </span>
                         )}
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4 w-full lg:w-[30%]">
-                    <div className="flex items-center gap-2 min-w-25">
-                        {item.lead ? (
-                            leadUser?.photoUrl ? (
-                                <img
-                                    src={leadUser.photoUrl}
-                                    alt={leadUser.name}
-                                    className="w-6 h-6 rounded-full object-cover border border-primary-container/40"
-                                />
-                            ) : (
-                                <div className="w-6 h-6 rounded-full bg-primary-container flex items-center justify-center text-xs font-mono">
-                                    {leadState.status === "loading" ? (
-                                        <span className="w-3 h-3 rounded-full bg-primary/40 animate-pulse" />
-                                    ) : (
-                                        leadInitials
-                                    )}
-                                </div>
-                            )
-                        ) : (
-                            <div className="w-6 h-6 rounded-full bg-surface-variant flex items-center justify-center text-xs font-mono">
-                                --
-                            </div>
-                        )}
-                        <span
-                            className={`text-sm truncate ${item.lead ? "text-text-primary" : "text-text-secondary"}`}
-                        >
-                            {item.lead
-                                ? (leadUser?.name ??
-                                  (leadState.status === "loading"
-                                      ? "Loading.."
-                                      : "Unknown"))
-                                : "Pending"}
+                {/* Team Project */}
+                <div className="lg:w-[25%] flex items-center">
+                    {item.teamProject ? (
+                        <span className="px-2 py-1 bg-secondary-container/20 text-secondary border border-secondary/30 rounded text-xs whitespace-nowrap truncate max-w-full">
+                            {item.teamProject}
                         </span>
-                    </div>
-                    {item.masterProject && (
-                        <span className="px-2 py-1 bg-secondary-container/20 text-secondary border border-secondary/30 rounded text-xs whitespace-nowrap truncate max-w-35">
-                            {item.masterProject}
-                        </span>
-                    )}
-                    <span className="text-kpi-display text-xl ml-auto border-b-2 text-text-primary border-secondary">
-                        {item.value != null
-                            ? `$${item.value.toLocaleString()}`
-                            : "N/A"}
-                    </span>
-                </div>
-
-                <div className="flex items-center gap-2 w-full lg:w-[25%]">
-                    <div className="px-2 py-1 rounded bg-surface-container/50 border border-outline-variant/30 flex flex-col flex-1">
-                        <span className="text-[8px] text-text-secondary font-mono">
-                            ASSIGNED
-                        </span>
-                        <span className="text-xs text-text-primary font-mono">
-                            {fmtDate(item.assignmentDate)}
-                        </span>
-                    </div>
-                    <div
-                        className={`px-2 py-1 rounded flex flex-col flex-1 bg-surface-container/50 border border-outline-variant/30 ${!item.acknowledgmentDate ? "opacity-50" : ""}`}
-                    >
-                        <span className="text-[8px] text-text-secondary font-mono">
-                            ACK'D
-                        </span>
-                        <span className="text-xs text-text-primary font-mono">
-                            {fmtDate(item.acknowledgmentDate)}
-                        </span>
-                    </div>
-                    <div
-                        className={`px-2 py-1 rounded flex flex-col flex-1 ${overdue ? "bg-status-stuck/10 border border-status-stuck/30" : "bg-surface-container/50 border border-outline-variant/30"}`}
-                    >
-                        <span
-                            className={`text-[8px] font-mono ${overdue ? "text-error" : "text-text-secondary"}`}
-                        >
-                            DUE
-                        </span>
-                        <span
-                            className={`text-xs font-mono ${overdue ? "text-error" : "text-text-primary"}`}
-                        >
-                            {fmtDate(item.completionDate)}
-                        </span>
-                    </div>
-                    {item.mirrorPercent != null && (
-                        <div className="flex flex-col items-center justify-center min-w-11">
-                            <span className="text-xs font-mono text-text-primary font-bold">
-                                {item.mirrorPercent}%
-                            </span>
-                            <span className="text-[8px] text-text-secondary font-mono">
-                                SUBTASKS
-                            </span>
-                        </div>
+                    ) : (
+                        <span className="text-text-secondary text-xs">—</span>
                     )}
                 </div>
 
+                {/* Status + Summary — stop propagation so they don't toggle the row */}
                 <div
-                    className="flex items-center gap-3 w-full lg:w-[23%] justify-end"
+                    className="flex items-center gap-3 lg:w-[45%] justify-end"
                     onClick={stop}
                 >
                     <div className="relative">
@@ -288,13 +175,17 @@ export function ProjectRow({ item, boardId, staggerIndex, onSummary }: Props) {
                             onSummary(item);
                         }}
                         className="btn-shimmer px-4 py-1.5 rounded-lg text-xs font-mono text-primary font-bold tracking-wider whitespace-nowrap"
-                        title={item.executiveSummary ?? "No summary yet"}
+                        title={
+                            item.executiveSummary ??
+                            "Generate executive summary"
+                        }
                     >
                         ✦ SUMMARY
                     </button>
                 </div>
             </div>
 
+            {/* Drill-down */}
             {hasSubitems && (
                 <div
                     className={`drill-panel ${expanded ? "drill-panel-open" : ""}`}
@@ -321,22 +212,86 @@ export function ProjectRow({ item, boardId, staggerIndex, onSummary }: Props) {
     );
 }
 
+/** Single subitem with owner avatar/name, due date, and status pill. */
 function SubitemRow({ sub, index }: { sub: SubItem; index: number }) {
-    const subColor = "#ccc";
+    const ownerState = useMondayUserById(sub.ownerId);
+    const owner = ownerState.status === "ready" ? ownerState.user : null;
+    const subColor = sub.status
+        ? (STATUS_COLORS[sub.status] ?? DEFAULT_STATUS_COLOR)
+        : DEFAULT_STATUS_COLOR;
+
+    const isCompleted = sub.status === STATUS_LABELS.COMPLETED;
+    const overdue = isOverdue(sub.dueDate, isCompleted);
+
+    const initials = owner
+        ? owner.name
+              .split(" ")
+              .map((w) => w[0])
+              .slice(0, 2)
+              .join("")
+              .toUpperCase()
+        : "—";
+
     return (
         <li
             className="drill-subitem flex items-center gap-3 pl-4 pr-3 py-2 rounded-lg bg-surface-container/30 border border-outline-variant/20 hover:bg-surface-container/60 transition-colors"
             style={{ animationDelay: `${index * 50}ms` }}
         >
-            <span className="material-symbols-outlined text-[16px] text-text-secondary">
+            <span className="material-symbols-outlined text-[16px] text-text-secondary shrink-0">
                 subdirectory_arrow_right
             </span>
+
             <span className="text-sm text-text-primary truncate flex-1">
                 {sub.name}
             </span>
+
+            {/* Owner avatar + name */}
+            {sub.ownerId != null && (
+                <div className="flex items-center gap-2 shrink-0">
+                    {owner?.photoUrl ? (
+                        <img
+                            src={owner.photoUrl}
+                            alt={owner.name}
+                            className="w-6 h-6 rounded-full object-cover border border-primary-container/40"
+                        />
+                    ) : (
+                        <div className="w-6 h-6 rounded-full bg-primary-container/40 flex items-center justify-center text-[10px] font-mono">
+                            {ownerState.status === "loading" ? (
+                                <span className="w-2.5 h-2.5 rounded-full bg-primary/40 animate-pulse" />
+                            ) : (
+                                initials
+                            )}
+                        </div>
+                    )}
+                    <span className="text-xs text-text-secondary max-w-30 truncate">
+                        {owner?.name ??
+                            (ownerState.status === "loading"
+                                ? "Loading…"
+                                : "Unknown")}
+                    </span>
+                </div>
+            )}
+
+            {/* Due date pill */}
+            {sub.dueDate && (
+                <span
+                    className={`text-[10px] font-mono px-2 py-0.5 rounded-full whitespace-nowrap shrink-0 flex items-center gap-1 ${
+                        overdue
+                            ? "bg-status-stuck/15 text-error border border-status-stuck/40"
+                            : "bg-surface-container/60 text-text-secondary border border-outline-variant/30"
+                    }`}
+                >
+                    <span className="material-symbols-outlined text-[12px]">
+                        {overdue ? "warning" : "event"}
+                    </span>
+                    {fmtDate(sub.dueDate)}
+                </span>
+            )}
+
+            {/* Status pill */}
             {sub.status && (
                 <span
-                    className="text-[10px] font-mono px-2 py-0.5 rounded-full whitespace-nowrap"
+                    className="text-[10px] font-mono px-2 py-0.5 rounded-full whitespace-nowrap shrink-0"
                     style={{
                         backgroundColor: `${subColor}22`,
                         color: subColor,

@@ -1,35 +1,13 @@
-// Hardcoded board IDS from env.
-
-export const BOARDS = {
-    colorado: {
-        id: import.meta.env.VITE_BOARD_COLORADO_ID as string,
-        label: "Colorado Team",
-    },
-    michigan: {
-        id: import.meta.env.VITE_BOARD_MICHIGAN_ID as string,
-        label: "Michigan Team",
-    },
-} as const;
-
-export type BoardKey = keyof typeof BOARDS;
-export const DEFAULT_BOARD: BoardKey = "colorado";
+export const BOARD_ID = import.meta.env.VITE_BOARD_ID as string;
 
 // Column IDS
 export const COLUMN_IDS = {
-    type: "type",
-    lead: "lead",
     status: "status",
-    masterProject: "board_relation_mm3hkk3c",
-    mirror: "lookup_mm3k5826",
-    value: "value",
-    assignmentDate: "assignment_date",
-    acknowledgmentDate: "acknowledgment_date",
-    completionDate: "completion_date",
-    executiveSummary: {
-        colorado: "long_text_mm3kpt39",
-        michigan: "long_text_mm3k76wv",
-    },
-    subitems: "subtasks_mm3hzyjz",
+    executiveSummary: "long_text_mm3kpt39",
+    location: "color_mm3q2bk",
+    teamProject: "board_relation_mm3qbkxw",
+    subitemOwner: "owner",
+    subitemDueDate: "due_date",
 } as const;
 
 export const STATUS_LABELS = {
@@ -49,3 +27,6 @@ export const STATUS_COLORS: Record<string, string> = {
 };
 
 export const DEFAULT_STATUS_COLOR = "#6B7280";
+
+export const LOCATIONS = ["Colorado", "Michigan"] as const;
+export type Location = (typeof LOCATIONS)[number];

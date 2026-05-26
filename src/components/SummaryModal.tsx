@@ -43,7 +43,7 @@ export function SummaryModal({ item, boardId, onClose }: Props) {
         };
 
         (async () => {
-            const current = await fetchItemSummary(item.id, boardId);
+            const current = await fetchItemSummary(item.id);
             if (cancelled) return;
 
             if (current) {
@@ -78,7 +78,7 @@ export function SummaryModal({ item, boardId, onClose }: Props) {
             pollTimer = setInterval(async () => {
                 if (cancelled) return;
                 try {
-                    const latest = await fetchItemSummary(item.id, boardId);
+                    const latest = await fetchItemSummary(item.id);
                     if (cancelled) return;
 
                     const changed =
