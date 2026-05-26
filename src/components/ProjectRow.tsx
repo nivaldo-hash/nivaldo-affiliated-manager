@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { SeamlessApiClient } from "@mondaydotcomorg/api";
-import type { ProjectItem, SubItem } from "./api";
+import type { ProjectItem, SubItem } from "../api/monday";
 import {
     STATUS_COLORS,
     STATUS_LABELS,
     DEFAULT_STATUS_COLOR,
     COLUMN_IDS,
-} from "./columnsMap";
+} from "../config/columns";
+import { useMondayUserById } from "../hooks/useMondayUserById";
 
 const client = new SeamlessApiClient();
 
@@ -72,9 +73,17 @@ export function ProjectRow({ item, boardId, staggerIndex, onSummary }: Props) {
         }
     };
 
-    const leadInitials = item.lead
-        ? `U${item.lead.id.toString().slice(-2)}`
+    const leadState = useMondayUserById(item.lead?.id ?? null);
+    const leadUser = leadState.status === "ready" ? leadState.user : null;
+    const leadInitials = leadUser
+        ? leadUser.name
+              .split(" ")
+              .map((w) => w[0])
+              .slice(0, 2)
+              .join("")
+              .toUpperCase()
         : "--";
+
     const hasSubitems = item.subitems.length > 0;
 
     const toggleExpand = () => {
@@ -139,15 +148,36 @@ export function ProjectRow({ item, boardId, staggerIndex, onSummary }: Props) {
 
                 <div className="flex items-center gap-4 w-full lg:w-[30%]">
                     <div className="flex items-center gap-2 min-w-25">
-                        <div
-                            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-mono ${item.lead ? "bg-primary-container" : "bg-surface-variant"}`}
-                        >
-                            {leadInitials}
-                        </div>
+                        {item.lead ? (
+                            leadUser?.photoUrl ? (
+                                <img
+                                    src={leadUser.photoUrl}
+                                    alt={leadUser.name}
+                                    className="w-6 h-6 rounded-full object-cover border border-primary-container/40"
+                                />
+                            ) : (
+                                <div className="w-6 h-6 rounded-full bg-primary-container flex items-center justify-center text-xs font-mono">
+                                    {leadState.status === "loading" ? (
+                                        <span className="w-3 h-3 rounded-full bg-primary/40 animate-pulse" />
+                                    ) : (
+                                        leadInitials
+                                    )}
+                                </div>
+                            )
+                        ) : (
+                            <div className="w-6 h-6 rounded-full bg-surface-variant flex items-center justify-center text-xs font-mono">
+                                --
+                            </div>
+                        )}
                         <span
-                            className={`text-sm ${item.lead ? "text-text-primary" : "text-text-secondary"}`}
+                            className={`text-sm truncate ${item.lead ? "text-text-primary" : "text-text-secondary"}`}
                         >
-                            {item.lead ? `Agent ${item.lead.id}` : "Pending"}
+                            {item.lead
+                                ? (leadUser?.name ??
+                                  (leadState.status === "loading"
+                                      ? "Loading.."
+                                      : "Unknown"))
+                                : "Pending"}
                         </span>
                     </div>
                     {item.masterProject && (

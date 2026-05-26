@@ -1,10 +1,10 @@
 import { useMemo } from "react";
-import type { ProjectItem } from "./api";
+import type { ProjectItem } from "../api/monday";
 import {
     STATUS_COLORS,
     STATUS_LABELS,
     DEFAULT_STATUS_COLOR,
-} from "./columnsMap";
+} from "../config/columns";
 
 type Props = { items: ProjectItem[] };
 

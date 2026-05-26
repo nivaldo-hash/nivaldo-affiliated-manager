@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchBoardData, type BoardData } from "./api";
+import { fetchBoardData, type BoardData } from "../api/monday";
 
 type State =
     | { status: "loading"; data: null; error: null }
@@ -12,6 +12,13 @@ export const useMondayBoard = (boardId: string): State => {
         data: null,
         error: null,
     });
+
+    const [lastBoardId, setLastBoardId] = useState(boardId);
+
+    if (boardId !== lastBoardId) {
+        setLastBoardId(boardId);
+        setState({ status: "loading", data: null, error: null });
+    }
 
     useEffect(() => {
         let cancelled = false;

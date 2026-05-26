@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import type { BoardData, ProjectItem } from "./api";
-import { StatusDistribution } from "./statusdistribution";
-import { ProjectRow } from "./projectrow";
+import type { BoardData, ProjectItem } from "../api/monday";
+import { StatusDistribution } from "./StatusDistribution";
+import { ProjectRow } from "./ProjectRow";
+import { SummaryModal } from "./SummaryModal";
 
 type Props = { board: BoardData };
 
@@ -43,29 +44,9 @@ export function Dashboard({ board }: Props) {
                         </h1>
                         <span className="px-3 py-1 rounded-full bg-primary-container/20 border border-primary-container text-primary text-label-mono flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(195,192,255,0.8)]" />
-                            {activeCount} Active Agents
+                            {activeCount} pending projects
                         </span>
                     </div>
-                    <div className="flex gap-2">
-                        <button className="p-2 rounded-lg bg-surface-variant hover:bg-surface-bright text-on-surface-variant transition-colors active:scale-95">
-                            <span className="material-symbols-outlined">
-                                filter_list
-                            </span>
-                        </button>
-                        <button className="p-2 rounded-lg bg-surface-variant hover:bg-surface-bright text-on-surface-variant transition-colors active:scale-95">
-                            <span className="material-symbols-outlined">
-                                sort
-                            </span>
-                        </button>
-                    </div>
-                </div>
-                <div className="flex gap-3 mt-2">
-                    <span className="text-on-surface-variant text-label-mono py-1 px-3 bg-surface-container rounded-md border border-outline-variant/30">
-                        View: All
-                    </span>
-                    <span className="text-on-surface-variant text-label-mono py-1 px-3 bg-surface-container rounded-md border border-outline-variant/30">
-                        Sort: Priority
-                    </span>
                 </div>
             </header>
 
@@ -106,11 +87,7 @@ export function Dashboard({ board }: Props) {
                         disabled={page === 1}
                         onClick={() => setPage((p) => Math.max(1, p - 1))}
                         className="page-btn w-9 h-9 rounded-lg bg-surface-container/50 border border-outline-variant/30 flex items-center justify-center text-on-surface-variant disabled:opacity-30"
-                    >
-                        <span className="material-symbols-outlined text-[20px]">
-                            chevron_left
-                        </span>
-                    </button>
+                    ></button>
                     {pageNumbers.map((p, i) =>
                         p === "..." ? (
                             <span
@@ -139,11 +116,7 @@ export function Dashboard({ board }: Props) {
                             setPage((p) => Math.min(totalPages, p + 1))
                         }
                         className="page-btn w-9 h-9 rounded-lg bg-surface-container/50 border border-outline-variant/30 flex items-center justify-center text-on-surface-variant disabled:opacity-30"
-                    >
-                        <span className="material-symbols-outlined text-[20px]">
-                            chevron_right
-                        </span>
-                    </button>
+                    ></button>
                 </nav>
 
                 <div className="flex items-center gap-2 order-3">
@@ -169,33 +142,11 @@ export function Dashboard({ board }: Props) {
 
             {/* Summary modal */}
             {activeSummary && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-background-deep/80 backdrop-blur-sm p-6"
-                    onClick={() => setActiveSummary(null)}
-                >
-                    <div
-                        className="glass-card rounded-xl p-8 max-w-2xl w-full"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-headline-md text-text-primary">
-                                ✦ {activeSummary.name}
-                            </h2>
-                            <button
-                                onClick={() => setActiveSummary(null)}
-                                className="text-text-secondary hover:text-text-primary"
-                            >
-                                <span className="material-symbols-outlined">
-                                    close
-                                </span>
-                            </button>
-                        </div>
-                        <p className="text-body-md text-text-secondary leading-relaxed">
-                            {activeSummary.executiveSummary ??
-                                "No executive summary available for this item."}
-                        </p>
-                    </div>
-                </div>
+                <SummaryModal
+                    item={activeSummary}
+                    boardId={board.id}
+                    onClose={() => setActiveSummary(null)}
+                />
             )}
         </>
     );

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchMe, type MondayUser } from "./api";
+import { fetchMe, type MondayUser } from "../api/monday";
 
 type State =
     | { status: "loading"; user: null }

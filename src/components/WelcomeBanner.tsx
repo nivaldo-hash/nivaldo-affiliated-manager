@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useMondayUser } from "./usemondayuser";
+import { useMondayUser } from "../hooks/useMondayUser";
 
 const getGreeting = () => {
     const hour = new Date().getHours();
