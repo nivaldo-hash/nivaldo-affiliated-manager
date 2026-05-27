@@ -81,6 +81,9 @@ export type SubItem = {
     name: string;
     state: string;
     status: string | null;
+    /** Labels valid for this subitem's status column. Shared across all subitems
+      on the same parent board (one subitem-board per parent). */
+    statusOptions: string[];
     ownerId: number | null;
     dueDate: string | null;
 };
@@ -143,10 +146,6 @@ export const fetchMe = async (): Promise<MondayUser> => {
 
 // ─── fetchUser (owner avatars) ──────────────────────────────────────────────
 
-/**
- * Cached lookup of any monday user by ID. Same person across many subitems
- * = one network call, all rows share the resolved promise.
- */
 const userCache = new Map<string, Promise<MondayUser>>();
 
 export const fetchUser = (userId: string | number): Promise<MondayUser> => {
@@ -258,6 +257,141 @@ export const updateItemStatus = async (
     );
 };
 
+/**
+ * Update a subitem's status. Subitems live on their own auto-generated board
+ * with a distinct status column, so we resolve the board ID + column ID at
+ * call time by querying the subitem itself.
+ */
+export const updateSubitemStatus = async (
+    subitemId: string,
+    newStatus: string,
+): Promise<void> => {
+    type Resp = {
+        method: string;
+        data: {
+            data: {
+                items: {
+                    board: { id: string };
+                    column_values: { id: string; type: string }[];
+                }[];
+            };
+        };
+    };
+
+    const meta = await client.request<Resp>(
+        `query {
+      items(ids: [${subitemId}]) {
+        board { id }
+        column_values { id type }
+      }
+    }`,
+    );
+
+    const item = meta.data?.data?.items?.[0];
+    const boardId = item?.board?.id;
+    const statusCol = item?.column_values?.find((c) => c.type === "status");
+
+    if (!boardId || !statusCol) {
+        throw new Error(
+            `Couldn't resolve board / status column for subitem ${subitemId}`,
+        );
+    }
+
+    // Interpolate values directly — same pattern as buildQuery (SeamlessApiClient
+    // doesn't reliably forward GraphQL $variables).
+    await client.request(
+        `mutation {
+      change_simple_column_value(
+        board_id: ${boardId},
+        item_id: ${subitemId},
+        column_id: "${statusCol.id}",
+        value: "${newStatus.replace(/"/g, '\\"')}"
+      ) { id }
+    }`,
+    );
+};
+
+/**
+ * Fetch the status labels defined on the subitem board associated with this
+ * parent board. Subitem boards have their own status definitions independent
+ * of the parent — this lets the UI offer only labels monday will accept.
+ *
+ * Returns an empty array on any failure so the UI gracefully degrades.
+ */
+const fetchSubitemStatusOptions = async (
+    parentBoardId: string,
+): Promise<string[]> => {
+    type Resp = {
+        method: string;
+        data: {
+            data: {
+                boards: {
+                    items_page: {
+                        items: {
+                            subitems: {
+                                board: {
+                                    columns: {
+                                        id: string;
+                                        type: string;
+                                        settings_str: string;
+                                    }[];
+                                };
+                            }[];
+                        }[];
+                    };
+                }[];
+            };
+        };
+    };
+
+    try {
+        // Pull a larger page and scan for the first item with subitems — item 0
+        // might have none, but item 17 might. We only need to find one to extract
+        // the subitem board's columns (they're shared across all subitems).
+        const res = await client.request<Resp>(
+            `query {
+        boards(ids: [${parentBoardId}]) {
+          items_page(limit: 100) {
+            items {
+              subitems {
+                board {
+                  columns { id type settings_str }
+                }
+              }
+            }
+          }
+        }
+      }`,
+        );
+
+        const items = res.data?.data?.boards?.[0]?.items_page?.items ?? [];
+        const itemWithSubs = items.find(
+            (it) => it.subitems && it.subitems.length > 0,
+        );
+
+        if (!itemWithSubs) {
+            console.warn(
+                "No items with subitems found — can't discover subitem status options",
+            );
+            return [];
+        }
+
+        const cols = itemWithSubs.subitems[0]?.board?.columns;
+        if (!cols) return [];
+
+        const statusCol = cols.find((c) => c.type === "status");
+        if (!statusCol?.settings_str) return [];
+
+        const settings = JSON.parse(statusCol.settings_str) as {
+            labels?: Record<string, string>;
+        };
+        return settings.labels ? Object.values(settings.labels) : [];
+    } catch (err) {
+        console.warn("Could not fetch subitem status options:", err);
+        return [];
+    }
+};
+
 // ─── Parser helpers ─────────────────────────────────────────────────────────
 
 const findCol = (cols: RawColumnValue[], id: string) =>
@@ -272,7 +406,10 @@ const parseVal = <T>(raw: string | null | undefined): T | null => {
     }
 };
 
-const parseItem = (raw: RawItem): ProjectItem => {
+const parseItem = (
+    raw: RawItem,
+    subitemStatusOptions: string[],
+): ProjectItem => {
     const cols = raw.column_values;
 
     const statusCol = findCol(cols, COLUMN_IDS.status);
@@ -297,6 +434,7 @@ const parseItem = (raw: RawItem): ProjectItem => {
             name: sub.name,
             state: sub.state,
             status: statusCol?.text || null,
+            statusOptions: subitemStatusOptions, // shared across all subitems
             ownerId: owner?.personsAndTeams?.[0]?.id ?? null,
             dueDate: due?.date ?? null,
         };
@@ -316,7 +454,11 @@ const parseItem = (raw: RawItem): ProjectItem => {
 // ─── fetchBoardData ─────────────────────────────────────────────────────────
 
 export const fetchBoardData = async (boardId: string): Promise<BoardData> => {
-    const data = await client.request<RawBoardResponse>(buildQuery(boardId));
+    // Fetch the main board data and subitem status options in parallel.
+    const [data, subitemStatusOptions] = await Promise.all([
+        client.request<RawBoardResponse>(buildQuery(boardId)),
+        fetchSubitemStatusOptions(boardId),
+    ]);
 
     const board = data.data?.data?.boards?.[0];
     if (!board) throw new Error(`Board ${boardId} not found or not accessible`);
@@ -324,6 +466,8 @@ export const fetchBoardData = async (boardId: string): Promise<BoardData> => {
     return {
         id: board.id,
         name: board.name,
-        items: (board.items_page?.items ?? []).map(parseItem),
+        items: (board.items_page?.items ?? []).map((item) =>
+            parseItem(item, subitemStatusOptions),
+        ),
     };
 };

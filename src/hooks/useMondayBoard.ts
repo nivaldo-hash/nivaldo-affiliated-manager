@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchBoardData, type BoardData } from "../api/monday";
 import { BOARD_ID } from "../config/columns";
-
+console.log("BOARD_ID:", BOARD_ID);
 type State =
     | { status: "loading"; data: null; error: null }
     | { status: "ready"; data: BoardData; error: null }

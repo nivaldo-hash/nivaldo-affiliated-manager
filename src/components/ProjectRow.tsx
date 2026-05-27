@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ProjectItem, SubItem } from "../api/monday";
-import { updateItemStatus } from "../api/monday";
+import { updateItemStatus, updateSubitemStatus } from "../api/monday";
 import {
     STATUS_COLORS,
     STATUS_LABELS,
@@ -72,8 +72,7 @@ export function ProjectRow({ item, boardId, staggerIndex, onSummary }: Props) {
 
     return (
         <div
-            className={`glass-card rounded-xl stagger-item stagger-${Math.min(staggerIndex + 1, 5)}
-            }`}
+            className={`glass-card rounded-xl stagger-item stagger-${Math.min(staggerIndex + 1, 5)}`}
         >
             {/* Main clickable row */}
             <div
@@ -212,15 +211,29 @@ export function ProjectRow({ item, boardId, staggerIndex, onSummary }: Props) {
     );
 }
 
-/** Single subitem with owner avatar/name, due date, and status pill. */
+/** Single subitem with owner avatar/name, due date, and editable status. */
 function SubitemRow({ sub, index }: { sub: SubItem; index: number }) {
     const ownerState = useMondayUserById(sub.ownerId);
     const owner = ownerState.status === "ready" ? ownerState.user : null;
-    const subColor = sub.status
-        ? (STATUS_COLORS[sub.status] ?? DEFAULT_STATUS_COLOR)
-        : DEFAULT_STATUS_COLOR;
 
-    const isCompleted = sub.status === STATUS_LABELS.COMPLETED;
+    // Local state for optimistic UI — instant feedback, rolls back on failure.
+    const [status, setStatus] = useState(sub.status);
+    const [updating, setUpdating] = useState(false);
+
+    // Subitem statuses use different labels from the parent board. Map common
+    // subitem labels to the same color palette, falling back to a neutral default.
+    const SUBITEM_COLOR_MAP: Record<string, string> = {
+        "Not started": STATUS_COLORS[STATUS_LABELS.ASSIGNED],
+        "In progress": STATUS_COLORS[STATUS_LABELS.IN_PROGRESS],
+        Paused: STATUS_COLORS[STATUS_LABELS.ON_HOLD],
+        Done: STATUS_COLORS[STATUS_LABELS.COMPLETED],
+    };
+    const subColor = status
+        ? (SUBITEM_COLOR_MAP[status] ??
+          STATUS_COLORS[status] ??
+          DEFAULT_STATUS_COLOR)
+        : DEFAULT_STATUS_COLOR;
+    const isCompleted = status === "Done" || status === STATUS_LABELS.COMPLETED;
     const overdue = isOverdue(sub.dueDate, isCompleted);
 
     const initials = owner
@@ -231,6 +244,20 @@ function SubitemRow({ sub, index }: { sub: SubItem; index: number }) {
               .join("")
               .toUpperCase()
         : "—";
+
+    const handleStatusChange = async (next: string) => {
+        const previous = status;
+        setStatus(next);
+        setUpdating(true);
+        try {
+            await updateSubitemStatus(sub.id, next);
+        } catch (err) {
+            console.error("Failed to update subitem status:", err);
+            setStatus(previous);
+        } finally {
+            setUpdating(false);
+        }
+    };
 
     return (
         <li
@@ -273,34 +300,79 @@ function SubitemRow({ sub, index }: { sub: SubItem; index: number }) {
             )}
 
             {/* Due date pill */}
-            {sub.dueDate && (
-                <span
-                    className={`text-[10px] font-mono px-2 py-0.5 rounded-full whitespace-nowrap shrink-0 flex items-center gap-1 ${
-                        overdue
-                            ? "bg-status-stuck/15 text-error border border-status-stuck/40"
-                            : "bg-surface-container/60 text-text-secondary border border-outline-variant/30"
-                    }`}
-                >
-                    <span className="material-symbols-outlined text-[12px]">
-                        {overdue ? "warning" : "event"}
+            {/* Due date pill — three states based on subitem progress:
+            • Completed → green check + completed label (no date shown — the
+              date already happened, the only meaningful info is "done")
+            • Overdue   → red warning + date
+            • Upcoming  → neutral icon + date                                  */}
+            {sub.dueDate &&
+                (isCompleted ? (
+                    <span
+                        className="text-[10px] font-mono px-2 py-0.5 rounded-full whitespace-nowrap shrink-0 flex items-center gap-1"
+                        style={{
+                            backgroundColor: `${STATUS_COLORS[STATUS_LABELS.COMPLETED]}22`,
+                            color: STATUS_COLORS[STATUS_LABELS.COMPLETED],
+                            border: `1px solid ${STATUS_COLORS[STATUS_LABELS.COMPLETED]}66`,
+                            boxShadow: `0 0 6px ${STATUS_COLORS[STATUS_LABELS.COMPLETED]}33`,
+                        }}
+                        title={`Completed (was due ${fmtDate(sub.dueDate)})`}
+                    >
+                        <span className="material-symbols-outlined text-[12px]">
+                            check_circle
+                        </span>
+                        Completed
                     </span>
-                    {fmtDate(sub.dueDate)}
-                </span>
-            )}
+                ) : (
+                    <span
+                        className={`text-[10px] font-mono px-2 py-0.5 rounded-full whitespace-nowrap shrink-0 flex items-center gap-1 ${
+                            overdue
+                                ? "bg-status-stuck/15 text-error border border-status-stuck/40"
+                                : "bg-surface-container/60 text-text-secondary border border-outline-variant/30"
+                        }`}
+                    >
+                        <span className="material-symbols-outlined text-[12px]">
+                            {overdue ? "warning" : "event"}
+                        </span>
+                        {fmtDate(sub.dueDate)}
+                    </span>
+                ))}
 
-            {/* Status pill */}
-            {sub.status && (
-                <span
-                    className="text-[10px] font-mono px-2 py-0.5 rounded-full whitespace-nowrap shrink-0"
-                    style={{
-                        backgroundColor: `${subColor}22`,
-                        color: subColor,
-                        border: `1px solid ${subColor}66`,
-                        boxShadow: `0 0 6px ${subColor}33`,
-                    }}
-                >
-                    {sub.status}
-                </span>
+            {/* Editable status dropdown */}
+            {status && (
+                <div className="relative shrink-0">
+                    <select
+                        value={status}
+                        disabled={updating}
+                        onChange={(e) => handleStatusChange(e.target.value)}
+                        className="appearance-none cursor-pointer pl-6 pr-6 py-0.5 rounded-full text-[10px] font-mono outline-none disabled:opacity-50"
+                        style={{
+                            backgroundColor: `${subColor}22`,
+                            borderWidth: 1,
+                            borderStyle: "solid",
+                            borderColor: `${subColor}66`,
+                            color: subColor,
+                            boxShadow: `0 0 6px ${subColor}33`,
+                        }}
+                    >
+                        {/* Use the subitem board's OWN labels (fetched at load time) so
+                monday never rejects the mutation for an invalid label. */}
+                        {sub.statusOptions.map((opt) => (
+                            <option
+                                key={opt}
+                                value={opt}
+                                className="bg-surface-container text-text-primary"
+                            >
+                                {opt}
+                            </option>
+                        ))}
+                    </select>
+                    <span
+                        className="material-symbols-outlined text-[10px] absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                        style={{ color: subColor }}
+                    >
+                        arrow_drop_down
+                    </span>
+                </div>
             )}
         </li>
     );

@@ -12,6 +12,15 @@ export default function App() {
     // Filter items by location client-side — they all come from the same board.
     const filteredBoard = useMemo(() => {
         if (state.status !== "ready") return null;
+        const locationValues = [
+            ...new Set(state.data.items.map((i) => i.location)),
+        ];
+        console.log(
+            "Location values from board:",
+            locationValues,
+            "| Filtering by:",
+            location,
+        );
         return {
             ...state.data,
             items: state.data.items.filter((i) => i.location === location),
