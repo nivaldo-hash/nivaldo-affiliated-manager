@@ -13,6 +13,7 @@ type Props = {
     boardId: string;
     staggerIndex: number;
     onSummary: (item: ProjectItem) => void;
+    onClientSubmit: (item: ProjectItem) => void;
 };
 
 const STATUS_OPTIONS = Object.values(STATUS_LABELS);
@@ -34,7 +35,7 @@ const isOverdue = (iso: string | null, completed: boolean) => {
 
 const stop = (e: React.MouseEvent) => e.stopPropagation();
 
-export function ProjectRow({ item, boardId, staggerIndex, onSummary }: Props) {
+export function ProjectRow({ item, boardId, staggerIndex, onSummary, onClientSubmit }: Props) {
     const [statusLabel, setStatusLabel] = useState(
         item.status?.label ?? STATUS_LABELS.ASSIGNED,
     );
@@ -180,6 +181,20 @@ export function ProjectRow({ item, boardId, staggerIndex, onSummary }: Props) {
                         }
                     >
                         ✦ SUMMARY
+                    </button>
+
+                    <button
+                        onClick={(e) => {
+                            stop(e);
+                            onClientSubmit(item);
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold tracking-wider whitespace-nowrap bg-surface-container/60 border border-outline-variant/40 text-text-secondary hover:border-primary/40 hover:text-primary hover:bg-primary-container/20 transition-colors"
+                        title="Send client submission to PM"
+                    >
+                        <span className="material-symbols-outlined text-[14px]">
+                            notification_important
+                        </span>
+                        NOTIFY PM
                     </button>
                 </div>
             </div>

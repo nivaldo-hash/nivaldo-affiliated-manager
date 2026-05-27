@@ -28,12 +28,9 @@ export default function App() {
     }, [state, location]);
 
     return (
-        <div className="min-h-screen relative">
-            <div className="ambient-orb orb-purple" />
-            <div className="ambient-orb orb-teal" />
-
-            <div className="relative z-10 mx-auto max-w-7xl p-gutter min-h-screen flex flex-col gap-gutter">
-                <div className="flex items-center justify-between gap-4">
+        <div className="min-h-screen">
+            <div className="app-shell">
+                <div className="top-bar">
                     <WelcomeBanner />
                     <LocationSwitcher
                         value={location}
@@ -45,7 +42,7 @@ export default function App() {
                 {state.status === "loading" && (
                     <div className="glass-card rounded-xl p-12 text-center stagger-item stagger-1">
                         <div className="inline-flex items-center gap-3 text-text-secondary">
-                            <span className="material-symbols-outlined animate-spin">
+                            <span className="material-symbols-outlined animate-spin text-text-secondary">
                                 progress_activity
                             </span>
                             <span className="text-label-mono">
@@ -56,7 +53,7 @@ export default function App() {
                 )}
 
                 {state.status === "error" && (
-                    <div className="glass-card rounded-xl p-12 text-center border border-status-stuck/30">
+                    <div className="glass-card rounded-xl p-12 text-center border border-(--st-stuck-dot)/30`">
                         <h2 className="text-headline-md text-error mb-2">
                             Failed to load board
                         </h2>
@@ -85,16 +82,15 @@ function LocationSwitcher({
     disabled?: boolean;
 }) {
     return (
-        <div className="relative">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-primary pointer-events-none">
+        <div className="relative segmented">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-text-secondary pointer-events-none">
                 location_on
             </span>
             <select
                 value={value}
                 disabled={disabled}
                 onChange={(e) => onChange(e.target.value as Location)}
-                className="appearance-none cursor-pointer pl-10 pr-9 py-2 rounded-full bg-primary-container/15 border border-primary-container/50 text-primary text-label-mono outline-none disabled:opacity-50 hover:bg-primary-container/25 transition-colors"
-                style={{ boxShadow: "0 0 12px rgba(59, 47, 207, 0.25)" }}
+                className="appearance-none cursor-pointer pl-10 pr-9 py-2 rounded-full bg-transparent border border-transparent text-text-primary text-label-mono outline-none disabled:opacity-50"
             >
                 {LOCATIONS.map((loc) => (
                     <option
@@ -106,7 +102,7 @@ function LocationSwitcher({
                     </option>
                 ))}
             </select>
-            <span className="material-symbols-outlined text-[18px] text-primary absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+            <span className="material-symbols-outlined text-[18px] text-text-secondary absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
                 expand_more
             </span>
         </div>

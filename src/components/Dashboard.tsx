@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import type { BoardData, ProjectItem } from "../api/monday";
 import { ProjectRow } from "./ProjectRow";
 import { SummaryModal } from "./SummaryModal";
+import { ClientSubmissionModal } from "./ClientSubmissionModal";
+import { StatusSummary } from "./StatusSummary";
 
 type Props = { board: BoardData };
 
@@ -13,12 +15,26 @@ export function Dashboard({ board }: Props) {
     const [activeSummary, setActiveSummary] = useState<ProjectItem | null>(
         null,
     );
+    const [activeSubmission, setActiveSubmission] =
+        useState<ProjectItem | null>(null);
+    const [statusFilter, setStatusFilter] = useState<string | null>(null);
 
-    const totalPages = Math.max(1, Math.ceil(board.items.length / pageSize));
+    const visibleItems = useMemo(
+        () =>
+            statusFilter
+                ? board.items.filter(
+                      (item) =>
+                          (item.status?.label ?? "Assigned") === statusFilter,
+                  )
+                : board.items,
+        [board.items, statusFilter],
+    );
+
+    const totalPages = Math.max(1, Math.ceil(visibleItems.length / pageSize));
     const paged = useMemo(() => {
         const start = (page - 1) * pageSize;
-        return board.items.slice(start, start + pageSize);
-    }, [board.items, page, pageSize]);
+        return visibleItems.slice(start, start + pageSize);
+    }, [visibleItems, page, pageSize]);
 
     const pageNumbers: (number | "...")[] = useMemo(() => {
         if (totalPages <= 5)
@@ -33,18 +49,38 @@ export function Dashboard({ board }: Props) {
                     <h1 className="text-headline-lg text-text-primary">
                         {board.name}
                     </h1>
-                    <span className="px-3 py-1 rounded-full bg-primary-container/20 border border-primary-container text-primary text-label-mono flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(195,192,255,0.8)]" />
-                        {board.items.length}{" "}
-                        {board.items.length === 1 ? "Project" : "Projects"}
+                    <span className="px-3 py-1 rounded-full bg-accent-soft border border-accent-border text-accent-text text-label-mono flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-accent" />
+                        {statusFilter
+                            ? visibleItems.length
+                            : board.items.length}{" "}
+                        {(statusFilter
+                            ? visibleItems.length
+                            : board.items.length) === 1
+                            ? "Project"
+                            : "Projects"}
                     </span>
                 </div>
             </header>
 
+            <div className="glass-card rounded-xl stagger-item stagger-2 overflow-hidden">
+                <StatusSummary
+                    items={board.items}
+                    mode="stacked"
+                    filter={statusFilter}
+                    onFilter={(value) => {
+                        setStatusFilter(value);
+                        setPage(1);
+                    }}
+                />
+            </div>
+
             <section className="flex flex-col gap-3">
                 {paged.length === 0 ? (
                     <div className="glass-card rounded-xl p-12 text-center text-text-secondary">
-                        No projects for this location.
+                        {statusFilter
+                            ? `No projects with status "${statusFilter}".`
+                            : "No projects for this location."}
                     </div>
                 ) : (
                     paged.map((item, i) => (
@@ -54,22 +90,23 @@ export function Dashboard({ board }: Props) {
                             boardId={board.id}
                             staggerIndex={i + 1}
                             onSummary={setActiveSummary}
+                            onClientSubmit={setActiveSubmission}
                         />
                     ))
                 )}
             </section>
 
-            {board.items.length > 0 && (
+            {visibleItems.length > 0 && (
                 <footer className="glass-card rounded-xl p-4 mt-2 flex flex-col md:flex-row items-center justify-between gap-6 stagger-item stagger-5">
                     <span className="text-xs font-mono text-text-secondary uppercase tracking-wider order-2 md:order-1">
                         Showing{" "}
-                        <span className="text-primary">
+                        <span className="text-accent-text">
                             {(page - 1) * pageSize + 1}-
-                            {Math.min(page * pageSize, board.items.length)}
+                            {Math.min(page * pageSize, visibleItems.length)}
                         </span>{" "}
                         of{" "}
-                        <span className="text-primary">
-                            {board.items.length}
+                        <span className="text-accent-text">
+                            {visibleItems.length}
                         </span>
                     </span>
 
@@ -97,7 +134,7 @@ export function Dashboard({ board }: Props) {
                                     onClick={() => setPage(p)}
                                     className={`page-btn w-9 h-9 rounded-lg text-xs font-mono flex items-center justify-center ${
                                         page === p
-                                            ? "bg-primary-container text-white shadow-[0_0_15px_rgba(59,47,207,0.4)]"
+                                            ? "bg-primary-container text-[#333333] shadow-[0_0_15px_rgba(59,47,207,0.4)]"
                                             : "bg-surface-container/50 border border-outline-variant/30 text-on-surface-variant"
                                     }`}
                                 >
@@ -145,6 +182,14 @@ export function Dashboard({ board }: Props) {
                     item={activeSummary}
                     boardId={board.id}
                     onClose={() => setActiveSummary(null)}
+                />
+            )}
+
+            {activeSubmission && (
+                <ClientSubmissionModal
+                    item={activeSubmission}
+                    boardId={board.id}
+                    onClose={() => setActiveSubmission(null)}
                 />
             )}
         </>

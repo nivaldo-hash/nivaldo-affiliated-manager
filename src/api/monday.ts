@@ -74,6 +74,44 @@ type RawBoardResponse = {
     };
 };
 
+type NextPageResponse = {
+    method: string;
+    data: {
+        data: {
+            next_items_page: { cursor: string | null; items: RawItem[] };
+        };
+    };
+};
+
+const buildNextPageQuery = (cursor: string) => `
+  query {
+    next_items_page(limit: 100, cursor: "${cursor}") {
+      cursor
+      items {
+        id
+        name
+        subitems {
+          id
+          name
+          state
+          column_values {
+            id
+            text
+            type
+            value
+          }
+        }
+        column_values {
+          id
+          text
+          type
+          value
+        }
+      }
+    }
+  }
+`;
+
 // ─── App-shaped types ───────────────────────────────────────────────────────
 
 export type SubItem = {
@@ -189,6 +227,36 @@ export const fetchUser = (userId: string | number): Promise<MondayUser> => {
 
     userCache.set(id, promise);
     return promise;
+};
+
+// ─── n8n client submission trigger ──────────────────────────────────────────
+
+export type ClientSubmissionPayload = {
+    projectId: string;
+    projectName: string;
+    boardId: string;
+    client: {
+        name: string;
+        company: string;
+        email: string;
+        phone: string;
+        message: string;
+    };
+};
+
+export const triggerClientSubmission = async (
+    payload: ClientSubmissionPayload,
+): Promise<void> => {
+    const url = import.meta.env.VITE_N8N_CLIENT_SUBMISSION_WEBHOOK;
+    if (!url)
+        throw new Error("Missing VITE_N8N_CLIENT_SUBMISSION_WEBHOOK in .env");
+
+    const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(`n8n webhook returned ${res.status}`);
 };
 
 // ─── n8n summary trigger ────────────────────────────────────────────────────
@@ -463,11 +531,21 @@ export const fetchBoardData = async (boardId: string): Promise<BoardData> => {
     const board = data.data?.data?.boards?.[0];
     if (!board) throw new Error(`Board ${boardId} not found or not accessible`);
 
+    const allRaw: RawItem[] = [...(board.items_page?.items ?? [])];
+    let cursor = board.items_page?.cursor ?? null;
+
+    while (cursor) {
+        const next = await client.request<NextPageResponse>(
+            buildNextPageQuery(cursor),
+        );
+        const page = next.data?.data?.next_items_page;
+        allRaw.push(...(page?.items ?? []));
+        cursor = page?.cursor ?? null;
+    }
+
     return {
         id: board.id,
         name: board.name,
-        items: (board.items_page?.items ?? []).map((item) =>
-            parseItem(item, subitemStatusOptions),
-        ),
+        items: allRaw.map((item) => parseItem(item, subitemStatusOptions)),
     };
 };

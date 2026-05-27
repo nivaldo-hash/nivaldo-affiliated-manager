@@ -19,14 +19,14 @@ export const STATUS_LABELS = {
 } as const;
 
 export const STATUS_COLORS: Record<string, string> = {
-    [STATUS_LABELS.ASSIGNED]: "#CCCCCC",
-    [STATUS_LABELS.ACKNOWLEDGED]: "#B57DE3",
+    [STATUS_LABELS.ASSIGNED]: "#555555",
+    [STATUS_LABELS.ACKNOWLEDGED]: "#703b9c",
     [STATUS_LABELS.IN_PROGRESS]: "#FDBC64",
-    [STATUS_LABELS.ON_HOLD]: "#e8697d",
-    [STATUS_LABELS.COMPLETED]: "#33D391",
+    [STATUS_LABELS.ON_HOLD]: "#ad782d",
+    [STATUS_LABELS.COMPLETED]: "#199461",
 };
 
-export const DEFAULT_STATUS_COLOR = "#6B7280";
+export const DEFAULT_STATUS_COLOR = "#555555";
 
 export const LOCATIONS = ["Colorado", "Michigan"] as const;
 export type Location = (typeof LOCATIONS)[number];
